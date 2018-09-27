@@ -31,17 +31,14 @@ def download_image(url, filePath):
     shutil.move(image[0], filePath)
     
 def changeBG(imagePath):
-    SPI_SETDESKWALLPAPER = 20
     ctypes.windll.user32.SystemParametersInfoW(20, 0, imagePath, 3)
-    return;
         
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", default=".", type=str, help="Path of the downloaded image")
+    parser.add_argument("--file", default="./xkcd.png", type=str, help="Path of the downloaded image")
     args = parser.parse_args()
-    
     
     page = download_page("https://xkcd.com/")
     images = find_image(page,'png')
