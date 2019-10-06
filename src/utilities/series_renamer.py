@@ -3,11 +3,10 @@ import shutil
 import re
 
 class SeriesRenamer:
-    def __init__(self, args):
-        self.name = args.name
-        self.folder = args.folder
-        self.season = args.season
-        
+    def __init__(self, directory, name, season):
+        self.name = name
+        self.folder = directory
+        self.season = season
         self._lift_files()
         os.chdir(self.folder)
         self._delete_directories()
@@ -45,7 +44,7 @@ class SeriesRenamer:
                 if (matchs and matche) or matchx or matchx2:
                     splited = file.split(".")
                     extension = splited[-1]
-                    filename = '.'.join(splited[0:-1])
+                
                     newfilename = "{} {}{}.{}".format(self.name,ids,ide,extension)
                     print("renaming {} to {}".format(file,newfilename))
                     try:
@@ -57,30 +56,29 @@ class SeriesRenamer:
                         number = number+1
 
         
-        
+ 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default=".", type=str, help="Path to series folder")
-    parser.add_argument("--name", default="default_name", type = str, help="Name of the series")
-    parser.add_argument("--season", default="1", type = int, help="Number of the season")
+    parser.add_argument("-d", default="D:\\series", type=str, help="Path to series folder")
     
     args = parser.parse_args()
-    if args.name == "default_name":
-        splited = os.path.basename(args.folder).split()
-        try:
+    
+    for directory in os.listdir(args.d):
+        full_path = os.path.join(args.d,directory)
+        if os.path.isdir(full_path):
+            print (full_path)
+            splited = directory.split()
             print(splited)
-            season = int(splited[-1])
-            
-            args.name = " ".join(splited[:-1])
-            args.season = season
-        except ValueError:
-            args.name = os.path.basename(args.folder)
-        print("Series name is {}.".format(args.name))
-        
-    renamer = SeriesRenamer(args)
-
+            try:
+                season = int(splited[-1])
+                name = " ".join(splited[:-1])
+            except ValueError:
+                season = 1
+                name = directory
+            print("Series name is {}.".format(name))
+            renamer = SeriesRenamer(full_path, name, season)
     
     
     
