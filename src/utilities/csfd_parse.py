@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import urllib.request
 from datetime import timedelta
 
+
 csfd = "https://www.csfd.cz"
 
 def download_page(url):
@@ -34,38 +35,60 @@ class Movie:
         self.name = name
 
     def load_data(self):
+
+        def parse_creators(profile):
+            desc = []
+            divs = profile.select(".creators")[0].find_all("div")
+            displayed_roles =["Režie","Hrají"]
+            for div in divs:
+                try:
+                    role, names = div.text.split(":")
+                except:
+                    pass
+
+                striped_role = role.strip()
+
+                if striped_role in displayed_roles:
+                    displayed_roles.remove(striped_role)
+                    striped_names = names.strip().split(",")
+                    striped_names = striped_names[0:min(len(striped_names),5)]
+                    striped_names = ", ".join(striped_names)
+                    desc.append( striped_role + ": " + striped_names)
+            desc = "\n".join(desc)
+
+            return desc
         try:
-            url = self.get_movie_url()
-            soup = download_page(url)
+            self.url = self.get_movie_url()
+            if self.url == None:
+                return
+            soup = download_page(self.url)
             profile = soup.select("#profile")[0]
             self.true_name = BeautifulSoup(profile.find_all("h1")[0].text, "lxml").text.strip()
             self.genre = profile.select(".genre")[0].contents[0]
             self.origin = BeautifulSoup(profile.select(".origin")[0].text, "lxml").text
-            self.creators = BeautifulSoup(profile.select(".creators")[0].text, "lxml").text
+            self.creators = parse_creators(profile)
             try:
                 self.plot = BeautifulSoup(soup.select("#plots")[0].find_all("li")[0].text, "lxml").text
             except IndexError:
                 self.plot=""
             self.loaded = True
-
         except Exception as e:
             print("Movie not loaded due to exception: " + str(e))
             self.loaded = False
             raise  e
-
-
+        
     def get_desc(self):
         if self.loaded:
-            desc = self.true_name + "\n" + self.genre + "\n"
-            desc += self.origin
-            return desc, self.plot
+            desc = self.true_name + "\n" + self.genre + "\n" 
+            desc += self.origin + "\n"
+            desc += self.plot
+            return desc
         else:
             return None
-
+    
     def get_movie_url(self):
         name = "+".join(self.name.split())
-        url = csfd + "/hledat/?q=" + name
-        print(url)
+        url =  csfd + "/hledat/?q=" + name
         soup = download_page(url)
         search_result = soup.select("#search-films")[0].select(".ui-image-list")
         if len(search_result) == 0:
@@ -100,29 +123,26 @@ def create_srt(file):
 def get_name(path):
     return Path(path).stem
 
-
 def write_desc(path, desc, duration=30):
     with open(path, "r") as f:
         content = f.read()
     srt_generator = srt.parse(content)
     subtitles = list(srt_generator)
-
     should_work_this = True
     if len(subtitles) > 0:
-        first_sub_delta = subtitles[0].start
+        first_sub = subtitles[0]
         should_work_this = subtitles[0].start != 0
     else:
         first_sub_delta = timedelta(seconds=999999)
-
     if should_work_this:
-        start = timedelta(seconds=0)
-        end = timedelta(seconds=duration)
+        duration = min(first_sub.start.total_seconds(), duration)
+        one_frame_duration = duration / len(desc)
 
-        halftime = min(end, first_sub_delta)/2
-        info = srt.Subtitle(1, start, halftime, desc[0])
-        subtitles.append(info)
-        info = srt.Subtitle(2, halftime, end, desc[1])
-        subtitles.append(info)
+        for i,d in enumerate(desc):
+            start = timedelta(seconds=one_frame_duration*i)
+            end = timedelta(seconds=one_frame_duration*(i+1))
+            subtitles.append(srt.Subtitle(1, start, end , d))
+
         subtitles = list(srt.sort_and_reindex(subtitles))
 
         with open(path, "w") as f:
@@ -135,7 +155,6 @@ def work_movie(path):
     movie = Movie(name)
     movie.load_data()
     desc = movie.get_desc()
-    print(desc)
     if desc is not None:
         write_desc(path, desc)
         pass
