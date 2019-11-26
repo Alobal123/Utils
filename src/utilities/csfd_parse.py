@@ -76,12 +76,15 @@ class Movie:
             print("Movie not loaded due to exception: " + str(e))
             self.loaded = False
             raise  e
-        
+
     def get_desc(self):
+        desc = []
         if self.loaded:
-            desc = self.true_name + "\n" + self.genre + "\n" 
-            desc += self.origin + "\n"
-            desc += self.plot
+            desc.append(self.true_name + " - " + self.genre + "  " + self.origin+ "\n" + self.creators)
+            splited = self.plot.split()
+            desc.append(" ".join(splited[0:len(splited)//2]))
+            desc.append(" ".join(splited[len(splited)//2:]))
+            print(desc)
             return desc
         else:
             return None
