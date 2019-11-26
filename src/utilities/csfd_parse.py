@@ -88,7 +88,7 @@ class Movie:
     
     def get_movie_url(self):
         name = "+".join(self.name.split())
-        url =  csfd + "/hledat/?q=" + name
+        url = csfd + "/hledat/?q=" + name
         soup = download_page(url)
         search_result = soup.select("#search-films")[0].select(".ui-image-list")
         if len(search_result) == 0:
@@ -113,6 +113,7 @@ def get_movie_files(dir):
         files = files + get_all_files_with_ext(dir, ext)
     return files
 
+
 def create_srt(file):
     srt_file = os.path.splitext(file)[0] + ".srt"
     if not os.path.exists(srt_file):
@@ -131,11 +132,13 @@ def write_desc(path, desc, duration=30):
     should_work_this = True
     if len(subtitles) > 0:
         first_sub = subtitles[0]
+        first_sub_start = first_sub.start.total_seconds()
         should_work_this = subtitles[0].start != 0
     else:
-        first_sub_delta = timedelta(seconds=999999)
+        first_sub_start = duration
+
     if should_work_this:
-        duration = min(first_sub.start.total_seconds(), duration)
+        duration = min(first_sub_start, duration)
         one_frame_duration = duration / len(desc)
 
         for i,d in enumerate(desc):
