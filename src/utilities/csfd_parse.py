@@ -14,8 +14,8 @@ from bs4 import BeautifulSoup
 import urllib.request
 from datetime import timedelta
 
-
 csfd = "https://www.csfd.cz"
+
 
 def download_page(url):
     try:
@@ -39,7 +39,7 @@ class Movie:
         def parse_creators(profile):
             desc = []
             divs = profile.select(".creators")[0].find_all("div")
-            displayed_roles =["Režie","Hrají"]
+            displayed_roles = ["Režie", "Hrají"]
             for div in divs:
                 try:
                     role, names = div.text.split(":")
@@ -51,12 +51,13 @@ class Movie:
                 if striped_role in displayed_roles:
                     displayed_roles.remove(striped_role)
                     striped_names = names.strip().split(",")
-                    striped_names = striped_names[0:min(len(striped_names),5)]
+                    striped_names = striped_names[0:min(len(striped_names), 5)]
                     striped_names = ", ".join(striped_names)
-                    desc.append( striped_role + ": " + striped_names)
+                    desc.append(striped_role + ": " + striped_names)
             desc = "\n".join(desc)
 
             return desc
+
         try:
             self.url = self.get_movie_url()
             if self.url == None:
@@ -70,25 +71,25 @@ class Movie:
             try:
                 self.plot = BeautifulSoup(soup.select("#plots")[0].find_all("li")[0].text, "lxml").text
             except IndexError:
-                self.plot=""
+                self.plot = ""
             self.loaded = True
         except Exception as e:
             print("Movie not loaded due to exception: " + str(e))
             self.loaded = False
-            raise  e
+            raise e
 
     def get_desc(self):
         desc = []
         if self.loaded:
-            desc.append(self.true_name + " - " + self.genre + "  " + self.origin+ "\n" + self.creators)
+            desc.append(self.true_name + " - " + self.genre + "  " + self.origin + "\n" + self.creators)
             splited = self.plot.split()
-            desc.append(" ".join(splited[0:len(splited)//2]))
-            desc.append(" ".join(splited[len(splited)//2:]))
+            desc.append(" ".join(splited[0:len(splited) // 2]))
+            desc.append(" ".join(splited[len(splited) // 2:]))
             print(desc)
             return desc
         else:
             return None
-    
+
     def get_movie_url(self):
         name = "+".join(self.name.split())
         url = csfd + "/hledat/?q=" + name
@@ -127,6 +128,7 @@ def create_srt(file):
 def get_name(path):
     return Path(path).stem
 
+
 def write_desc(path, desc, duration=30):
     with open(path, "r") as f:
         content = f.read()
@@ -144,10 +146,10 @@ def write_desc(path, desc, duration=30):
         duration = min(first_sub_start, duration)
         one_frame_duration = duration / len(desc)
 
-        for i,d in enumerate(desc):
-            start = timedelta(seconds=one_frame_duration*i)
-            end = timedelta(seconds=one_frame_duration*(i+1))
-            subtitles.append(srt.Subtitle(1, start, end , d))
+        for i, d in enumerate(desc):
+            start = timedelta(seconds=one_frame_duration * i)
+            end = timedelta(seconds=one_frame_duration * (i + 1))
+            subtitles.append(srt.Subtitle(1, start, end, d))
 
         subtitles = list(srt.sort_and_reindex(subtitles))
 
@@ -173,12 +175,13 @@ if __name__ == "__main__":
     parser.add_argument("-d", default="C:\\Users\\mkrabec\\Videos", type=str, help="Path of the directory")
     args = parser.parse_args()
 
+
     def prepare_test(file):
         path = os.path.join(args.d, "test")
-        testpath = os.path.join(path, os.path.basename(file))
+        test_path = os.path.join(path, os.path.basename(file))
         os.system("mkdir {}".format(path))
-        os.system("copy {} {}".format(file, testpath))
-        return testpath
+        os.system("copy {} {}".format(file, test_path))
+        return test_path
 
 
     movie_files = get_movie_files(args.d)
