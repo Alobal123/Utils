@@ -4,9 +4,10 @@ Created on 5. 10. 2019
 @author: miros
 '''
 
+# -- coding: utf-8 --
+
 import gzip
 import os
-
 
 import srt
 from pathlib import Path
@@ -32,6 +33,7 @@ def download_page(url):
 
 
 class Movie:
+
     def __init__(self, name):
         self.name = name
         self.loaded = False
@@ -78,26 +80,25 @@ class Movie:
         except Exception as e:
             print("Movie not loaded due to exception: " + str(e))
             self.loaded = False
-            raise e
+            #raise e
 
-    def get_desc(self, number_of_splits = 6, max_plot_length = 12):
+    def get_desc(self, number_of_splits=6, max_plot_length=12):
         desc = []
         if self.loaded:
             desc.append(self.true_name + " - " + self.genre + "  " + self.origin)
             desc.append(self.creators)
             plot = self.plot
-            
             splited = plot.split()
             for i in range(0, number_of_splits):
                 if(len(splited) >= i * max_plot_length):
-                    desc.append(" ".join(splited[i * max_plot_length : (i+1) * max_plot_length]))
+                    desc.append(" ".join(splited[i * max_plot_length : (i + 1) * max_plot_length]))
             print(desc)
             return desc
         else:
             return None
 
     def get_movie_url(self):
-        name = "+".join(self.name.split())
+        name = "+".join([ urllib.parse.quote(n) for n in self.name.split()])
         url = csfd + "/hledat/?q=" + name
         soup = download_page(url)
         search_result = soup.select("#search-films")[0].select(".ui-image-list")
@@ -135,16 +136,26 @@ def get_name(path):
     return Path(path).stem
 
 
-def write_desc(path, desc, duration=30):
-    with open(path, "r") as f:
-        content = f.read()
+def write_desc(path, desc, overwrite, duration=30):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except UnicodeDecodeError:
+        with open(path, "r") as f:
+            content = f.read()
     srt_generator = srt.parse(content)
-    subtitles = list(srt_generator)
-    should_work_this = True
+    try:
+        should_work_this = True
+        subtitles = list(srt_generator)
+    except:
+        print("Skipping bad srt format")
+        return
+    
+    
     if len(subtitles) > 0:
         first_sub = subtitles[0]
         first_sub_start = first_sub.start.total_seconds()
-        should_work_this = subtitles[0].start != 0
+        should_work_this = overwrite or subtitles[0].start != 0
     else:
         first_sub_start = duration
 
@@ -159,18 +170,18 @@ def write_desc(path, desc, duration=30):
 
         subtitles = list(srt.sort_and_reindex(subtitles))
 
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(srt.compose(subtitles))
 
 
-def work_movie(path):
+def work_movie(path, overwrite=False):
     name = get_name(path)
     print("Movie: {}".format(name))
     movie = Movie(name)
     movie.load_data()
     desc = movie.get_desc()
     if desc is not None:
-        write_desc(path, desc)
+        write_desc(path, desc, overwrite)
         pass
 
 
@@ -178,9 +189,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", default="D:\\Movies\\Seen", type=str, help="Path of the directory")
-    args = parser.parse_args()
+    parser.add_argument("-d", default="H:\\", type=str, help="Path of the directory")
+    parser.add_argument('--overwrite', action='store_true') 
 
+    args = parser.parse_args()
 
     def prepare_test(file):
         path = os.path.join(args.d, "test")
@@ -189,14 +201,11 @@ if __name__ == "__main__":
         os.system("copy {} {}".format(file, test_path))
         return test_path
 
-
     movie_files = get_movie_files(args.d)
     print(movie_files)
     for file in movie_files:
         create_srt(file)
     srt_files = get_all_files_with_ext(args.d, ".srt")
     for file in srt_files:
-        work_movie(file)
-    # file = srt_files[0]
-    # file = prepare_test(file)
-    # work_movie(file)
+        work_movie(file, args.overwrite)
+    
