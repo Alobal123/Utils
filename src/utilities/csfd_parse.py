@@ -3,16 +3,17 @@ Created on 5. 10. 2019
 
 @author: miros
 '''
-import urllib
+
 import gzip
 import os
-from http.client import IncompleteRead
+
 
 import srt
 from pathlib import Path
 from bs4 import BeautifulSoup
 import urllib.request
 from datetime import timedelta
+from http.client import IncompleteRead
 
 csfd = "https://www.csfd.cz"
 
@@ -33,6 +34,7 @@ def download_page(url):
 class Movie:
     def __init__(self, name):
         self.name = name
+        self.loaded = False
 
     def load_data(self):
 
@@ -78,13 +80,17 @@ class Movie:
             self.loaded = False
             raise e
 
-    def get_desc(self):
+    def get_desc(self, number_of_splits = 6, max_plot_length = 12):
         desc = []
         if self.loaded:
-            desc.append(self.true_name + " - " + self.genre + "  " + self.origin + "\n" + self.creators)
-            splited = self.plot.split()
-            desc.append(" ".join(splited[0:len(splited) // 2]))
-            desc.append(" ".join(splited[len(splited) // 2:]))
+            desc.append(self.true_name + " - " + self.genre + "  " + self.origin)
+            desc.append(self.creators)
+            plot = self.plot
+            
+            splited = plot.split()
+            for i in range(0, number_of_splits):
+                if(len(splited) >= i * max_plot_length):
+                    desc.append(" ".join(splited[i * max_plot_length : (i+1) * max_plot_length]))
             print(desc)
             return desc
         else:
@@ -172,7 +178,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", default="C:\\Users\\mkrabec\\Videos", type=str, help="Path of the directory")
+    parser.add_argument("-d", default="D:\\Movies\\Seen", type=str, help="Path of the directory")
     args = parser.parse_args()
 
 
