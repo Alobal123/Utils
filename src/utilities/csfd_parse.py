@@ -15,11 +15,17 @@ from bs4 import BeautifulSoup
 import urllib.request
 from datetime import timedelta
 from http.client import IncompleteRead
+from srt_transformer import SrtTransformer
 
-csfd = "https://www.csfd.cz"
+CSFD = "https://www.csfd.cz"
 
 
 def download_page(url):
+    """
+
+    :param url:
+    :return:
+    """
     try:
         response = urllib.request.urlopen(url)
         data = response.read()
@@ -64,7 +70,7 @@ class Movie:
 
         try:
             self.url = self.get_movie_url()
-            if self.url == None:
+            if self.url is None:
                 return
             soup = download_page(self.url)
             profile = soup.select("#profile")[0]
@@ -73,7 +79,8 @@ class Movie:
             self.origin = BeautifulSoup(profile.select(".origin")[0].text, "lxml").text
             self.creators = parse_creators(profile)
             try:
-                self.plot = BeautifulSoup(soup.select("#plots")[0].find_all("li")[0].text, "lxml").text
+                self.plot = BeautifulSoup(
+                    soup.select("#plots")[0].find_all("li")[0].text, "lxml").text
             except IndexError:
                 self.plot = ""
             self.loaded = True
@@ -90,7 +97,7 @@ class Movie:
             plot = self.plot
             splited = plot.split()
             for i in range(0, number_of_splits):
-                if(len(splited) >= i * max_plot_length):
+                if len(splited) >= i * max_plot_length:
                     desc.append(" ".join(splited[i * max_plot_length : (i + 1) * max_plot_length]))
             print(desc)
             return desc
@@ -98,8 +105,8 @@ class Movie:
             return None
 
     def get_movie_url(self):
-        name = "+".join([ urllib.parse.quote(n) for n in self.name.split()])
-        url = csfd + "/hledat/?q=" + name
+        name = "+".join([urllib.parse.quote(n) for n in self.name.split()])
+        url = CSFD + "/hledat/?q=" + name
         soup = download_page(url)
         search_result = soup.select("#search-films")[0].select(".ui-image-list")
         if len(search_result) == 0:
@@ -137,41 +144,29 @@ def get_name(path):
 
 
 def write_desc(path, desc, overwrite, duration=30):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-    except UnicodeDecodeError:
-        with open(path, "r") as f:
-            content = f.read()
-    srt_generator = srt.parse(content)
-    try:
-        should_work_this = True
-        subtitles = list(srt_generator)
-    except:
-        print("Skipping bad srt format")
-        return
-    
-    
-    if len(subtitles) > 0:
-        first_sub = subtitles[0]
-        first_sub_start = first_sub.start.total_seconds()
-        should_work_this = overwrite or subtitles[0].start != 0
-    else:
-        first_sub_start = duration
 
-    if should_work_this:
-        duration = min(first_sub_start, duration)
-        one_frame_duration = duration / len(desc)
 
-        for i, d in enumerate(desc):
-            start = timedelta(seconds=one_frame_duration * i)
-            end = timedelta(seconds=one_frame_duration * (i + 1))
-            subtitles.append(srt.Subtitle(1, start, end, d))
+    def add_desc(subtitles, desc, duration):
+        if len(subtitles) > 0:
+            first_sub = subtitles[0]
+            first_sub_start = first_sub.start.total_seconds()
+            should_work_this = overwrite or subtitles[0].start != 0
+        else:
+            first_sub_start = duration
 
-        subtitles = list(srt.sort_and_reindex(subtitles))
+        if should_work_this:
+            duration = min(first_sub_start, duration)
+            one_frame_duration = duration / len(desc)
 
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(srt.compose(subtitles))
+            for i, d in enumerate(desc):
+                start = timedelta(seconds=one_frame_duration * i)
+                end = timedelta(seconds=one_frame_duration * (i + 1))
+                subtitles.append(srt.Subtitle(1, start, end, d))
+        return subtitles
+
+    transformer = SrtTransformer(path, add_desc)
+    transformer.transform(desc, duration)
+    transformer.write_to_file()
 
 
 def work_movie(path, overwrite=False):
@@ -189,23 +184,15 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", default="H:\\", type=str, help="Path of the directory")
-    parser.add_argument('--overwrite', action='store_true') 
+    parser.add_argument("-d", default="D:\\Movies\\Test", type=str, help="Path of the directory")
+    parser.add_argument('--overwrite', action='store_true')
 
     args = parser.parse_args()
 
-    def prepare_test(file):
-        path = os.path.join(args.d, "test")
-        test_path = os.path.join(path, os.path.basename(file))
-        os.system("mkdir {}".format(path))
-        os.system("copy {} {}".format(file, test_path))
-        return test_path
-
     movie_files = get_movie_files(args.d)
-    print(movie_files)
+    print('Movies:', movie_files)
     for file in movie_files:
         create_srt(file)
     srt_files = get_all_files_with_ext(args.d, ".srt")
     for file in srt_files:
         work_movie(file, args.overwrite)
-    
